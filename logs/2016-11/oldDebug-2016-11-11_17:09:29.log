@@ -1,0 +1,8 @@
+2016-11-11 17:09:28,389 DEBUG(CreateDruidQuery.java:271): Checking parameters...
+2016-11-11 17:09:28,392 DEBUG(CreateDruidQuery.java:230): Params OK. Preparing query...
+2016-11-11 17:09:28,393 INFO (CreateDruidQuery.java:239): CreateDruidQuery [select=[all],fromDate=1970-01-01T01:00:00.000+01:00,toDate=2016-11-11T17:09:27.639+01:00,dataSource=youbora_events_65,filter=[],granularity=ALL,limit=100,groupBy=false,orderBy=[],having=[]]
+2016-11-11 17:09:28,399 DEBUG(SelectQuery.java:34): Created select query: 
+ {"queryType": "select","dataSource": "youbora_events_65","granularity": "all","descending": "false","dimensions":[],"metrics":[],"intervals": ["1970-01-01T01:00:00.000+01:00/2016-11-11T17:09:27.639+01:00"],"pagingSpec":{"pagingIdentifiers":{}, "threshold":100, "fromNext": true},"context":{"timeout":40000}}
+2016-11-11 17:09:28,402 DEBUG(DruidBrokerUtil.java:28): POSTing query to http://druid-brokers-nl.youbora.com/druid/v2/?pretty.
+2016-11-11 17:09:29,382 DEBUG(DruidBrokerUtil.java:125): Query resolved by druid lib broker in 980ms.
+2016-11-11 17:09:29,383 DEBUG(DruidBrokerUtil.java:126): JSON result correctly received with 100 rows.
