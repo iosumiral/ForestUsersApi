@@ -20,7 +20,7 @@ public class FUAService {
 	public static AdaBoostM1 forest;
 
 	public static void main(String[] list) throws Exception {
-
+		Configuration.getInstance();
 		// start classifier
 		FUABuilder fb = new FUABuilder();
 		fb.run();

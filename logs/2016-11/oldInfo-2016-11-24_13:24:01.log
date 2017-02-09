@@ -1,0 +1,1 @@
+2016-11-24 13:24:00,538 INFO (CreateDruidQuery.java:239): CreateDruidQuery [select=[all],fromDate=1970-01-01T01:00:00.000+01:00,toDate=2016-11-24T13:23:58.962+01:00,dataSource=youbora_events_13,filter=[user_id == "12620849", event_type == "STOP"],granularity=ALL,limit=2,groupBy=false,orderBy=[timestamp DESC],having=[]]

@@ -19,7 +19,7 @@ public class FUAUser {
 
 	public static void main(String[] args) {
 		FUAUser u = new FUAUser();
-		u.getAnInstance(new String[] { "12620849", "13" });
+		u.getAnInstance(new String[] { "11938814", "506" });
 	}
 
 	public static Instance getAnInstance(String[] args) {
@@ -31,22 +31,28 @@ public class FUAUser {
 		long endAt = System.currentTimeMillis();
 
 		try {
-
 			////
-			CreateDruidQuery create = new CreateDruidQuery(Configuration.DRUID_BROKER);
-			create.select(Select.metrics("avg_bitrate", "buffer_underruns", "buffer_underrun_total", "viewtime",
+			CreateDruidQuery create1 = new CreateDruidQuery(Configuration.DRUID_BROKER);
+			create1.select(Select.metrics("avg_bitrate", "buffer_underruns", "buffer_underrun_total", "viewtime",
 					"startup_time", "outBytes"), Select.timestamp());
-			// // here we create the artificial values used to store necessary
-			// // quantities
-			create.from("youbora_events_" + accountCode);
-			create.initTime(initAt);
-			create.endTime(endAt);
-			create.limit(2);
-			create.orderBy(Order.desc("timestamp"));
-			create.filter(Filter.equals("user_id", userId));
-			create.filter(Filter.equals("event_type", "STOP"));
-			List<Map<String, Object>> results = create.send();
+			// create1.select(Select.all());
+			// here we create the artificial values used to store necessary
+			// quantities
+			create1.from("youbora_events_" + accountCode);
+			create1.initTime(initAt);
+			create1.endTime(endAt);
+			create1.limit(2);
+			create1.orderBy(Order.desc("timestamp"));
+			create1.filter(Filter.equals("user_id", userId));
+			create1.filter(Filter.equals("event_type", "STOP"));
+			List<Map<String, Object>> results = create1.send();
 			for (int i = 0; i < results.size(); i++) {
+				for (Entry<String, Object> mapa : results.get(i).entrySet()) {
+					System.out.println(mapa.getKey());
+					// System.out.println(mapa.getKey() + " -> " +
+					// mapa.getValue());
+				}
+				System.out.println("##########");
 				for (Entry<String, Object> mapa : results.get(i).entrySet()) {
 					if ((mapa.getValue() instanceof Double) == false && (mapa.getValue() instanceof Long) == false)
 						mapa.setValue(0.0);
@@ -58,10 +64,6 @@ public class FUAUser {
 				results.get(i).put("viewtime", (double) results.get(i).get("viewtime") / 60000);
 				results.get(i).put("startup_time", (double) results.get(i).get("startup_time") / 1000);
 				results.get(i).put("avg_bitrate", (double) results.get(i).get("avg_bitrate") / 1000000);
-				for (Entry<String, Object> mapa : results.get(i).entrySet()) {
-					System.out.println(mapa.getKey() + " -> " + mapa.getValue());
-				}
-				// System.out.println("##########");
 			}
 
 			CreateDruidQuery create2 = new CreateDruidQuery("http://druid-brokers-nl.youbora.com/druid/v2/?pretty");
@@ -83,25 +85,24 @@ public class FUAUser {
 				results2.get(i).put("avg_startup_time", (double) results2.get(i).get("avg_startup_time") / 1000);
 				results2.get(i).put("avg_avg_bitrate", (double) results2.get(i).get("avg_avg_bitrate") / 1000000);
 				for (Entry<String, Object> mapa : results2.get(i).entrySet()) {
-					 System.out.println(mapa.getKey() + " -> " +
-					 mapa.getValue());
+					System.out.println(mapa.getKey() + " -> " + mapa.getValue());
 				}
-				 System.out.println("##########");
+				System.out.println("##########");
 			}
 			CreateDruidQuery create3 = new CreateDruidQuery(Configuration.DRUID_BROKER);
 			create3.select(Select.count());
 			create3.filter(Filter.equals("user_id", userId));
 			create3.from("youbora_events_" + accountCode);
 			long t = (long) results.get(0).get("timestamp");
-//			long t = System.currentTimeMillis();
+			// long t = System.currentTimeMillis();
 			create3.initTime(t - 1000 * 3600 * 24);
 			create3.endTime(t + 1);
 			// create3.filter(Filter.equals("event_type", "START"));
 			// create3.granularity(Granularity.DAY, "Europe/Madrid");
 			List<Map<String, Object>> results3 = create3.send();
-				// if we don't find the reference "count" we create it
-				// initialised as zero
-			if(results3.size()==0){
+			// if we don't find the reference "count" we create it
+			// initialised as zero
+			if (results3.size() == 0) {
 				Map<String, Object> aux = new ConcurrentHashMap<String, Object>();
 				aux.put("count", 0.0);
 				results3.add(aux);
@@ -140,7 +141,7 @@ public class FUAUser {
 					((double) results.get(0).get("viewtime") > (double) results.get(1).get("viewtime")) ? 1.0 : 0.0,
 					((double) results.get(0).get("startup_time") < (double) results.get(1).get("startup_time")) ? 1.0
 							: 0.0,
-					 (double) (long) results3.get(0).get("count") };
+					(double) (long) results3.get(0).get("count") };
 			// double[] test = {
 			// 0.0,945993.9693877551,0.0,0.0,2595.823698979593,2483.5138520408163,0.0,0.0,0.0,71.0,1322.0,0.0,0.0,0.0,0.0,1.0,0.0
 			// };
