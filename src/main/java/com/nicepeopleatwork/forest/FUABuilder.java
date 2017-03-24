@@ -1,12 +1,15 @@
 package com.nicepeopleatwork.forest;
 
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.nicepeopleatwork.forest.beans.UserBean;
 import com.nicepeopleatwork.forest.conf.Configuration;
 
 import weka.classifiers.Classifier;
@@ -15,6 +18,7 @@ import weka.classifiers.evaluation.NominalPrediction;
 import weka.classifiers.evaluation.Prediction;
 import weka.classifiers.meta.AdaBoostM1;
 import weka.classifiers.trees.RandomForest;
+import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ConverterUtils.DataSource;
@@ -22,206 +26,292 @@ import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.NumericToNominal;
 import weka.filters.unsupervised.attribute.Remove;
 
-public class FUABuilder {
+public class FUABuilder
+{
 
 	private long initTimeProcess;
 
 	// save these outside to use other methods
 	private RandomForest forest;
+
 	private AdaBoostM1 adaboost;
 
 	// three values to judge the system's accuracy
-	private double falsePositives;
-	private double falseNegatives;
+	private double falseChurn;
+
+	private double falseNotChurn;
+
 	private double generalAccuracy;
-	
-	private Map<Integer,Instance> userIdToRevisit = new ConcurrentHashMap<Integer,Instance>();
 
-	public static void main(String[] args) throws Exception {
-		FUABuilder fb = new FUABuilder();
-		fb.run();
-		
+	private double rsme;
+
+	private static BufferedWriter writer;
+
+	private String trainingFile;
+
+	private String testingFile;
+
+	private Map < Integer , Instance > userIdToRevisit = new ConcurrentHashMap < Integer , Instance > ( );
+
+	public FUABuilder ( String trainingFile , String testingFile )
+	{
+		this.trainingFile = trainingFile;
+		this.testingFile = testingFile;
 	}
 
-	public double getFalsePositives() {
-		return falsePositives;
+	public static void main ( String [ ] args ) throws Exception
+	{
+		writer = new BufferedWriter ( new FileWriter ( Configuration.PREDICTIONS_PATH ) );
+		writer.write ( "iterations,numTrees,numFeatures,falseChurn,falseNotChurn,accuracy,rsme,test_time" );
+		writer.newLine ( );
+		for ( int depth = 0 ; depth < 15 ; depth ++ )
+			for ( int iterations = 10 ; iterations < 80 ; iterations ++ )
+				for ( int numTrees = 10 ; numTrees < 200 ; numTrees = numTrees + 10 )
+					for ( int numFeatures = 0 ; numFeatures < 16 ; numFeatures ++ )
+					{
+						System.out.format ( "Attempting with depth %d, %d adaboost iterations, %d trees in the forest and %d max features on each tree%n" , depth , iterations , numTrees , numFeatures );
+						Configuration.NUM_FEATURES = numFeatures;
+						Configuration.ADABOOST_ITERATIONS = iterations;
+						Configuration.NUM_TREES = numTrees;
+						Configuration.DEPTH = depth;
+						FUABuilder fb = new FUABuilder ( Configuration.TRAIN_DATABASE_PATH ,
+								Configuration.TEST_DATABASE_PATH );
+						fb.run ( );
+					}
+		writer.close ( );
 	}
 
-	public void setFalsePositives(double falsePositives) {
-		this.falsePositives = falsePositives;
+//	public static void main ( String [ ] args ) throws Exception
+//	{
+//		FUABuilder fb = new FUABuilder ( Configuration.TRAIN_DATABASE_PATH , Configuration.TEST_DATABASE_PATH );
+//		fb.run ( );
+//		Random rand = new Random ( );
+//		List < UserBean > list = new ArrayList <> ( );
+//		for ( int i = 0 ; i < 5000 ; i ++ )
+//		{
+//			UserBean user = new UserBean ( 0 , rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) ,
+//					rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) ,
+//					rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) ,
+//					rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) , rand.nextDouble ( ) ,
+//					rand.nextDouble ( ) );
+//			list.add ( user );
+//		}
+//		long t = System.currentTimeMillis ( );
+//		for ( UserBean user : list )
+//		{
+//			double d = fb.churnPercentage ( user );
+//		}
+//		t = System.currentTimeMillis ( ) - t;
+//		System.out.println ( "t: " + t );
+//	}
+
+	public double getFalseChurn ( )
+	{
+		return falseChurn;
 	}
 
-	public double getFalseNegatives() {
-		return falseNegatives;
+	public void setFalseChurn ( double falsePositives )
+	{
+		this.falseChurn = falsePositives;
 	}
 
-	public void setFalseNegatives(double falseNegatives) {
-		this.falseNegatives = falseNegatives;
+	public double getFalseNotChurn ( )
+	{
+		return falseNotChurn;
 	}
 
-	public double getGeneralAccuracy() {
+	public void setFalseNotChurn ( double falseNegatives )
+	{
+		this.falseNotChurn = falseNegatives;
+	}
+
+	public double getGeneralAccuracy ( )
+	{
 		return generalAccuracy;
 	}
 
-	public void setGeneralAccuracy(double generalAccuracy) {
+	public void setGeneralAccuracy ( double generalAccuracy )
+	{
 		this.generalAccuracy = generalAccuracy;
 	}
 
-	public RandomForest getForest() {
+	public RandomForest getForest ( )
+	{
 		return forest;
 	}
 
-	public AdaBoostM1 getAdaboost() {
+	public AdaBoostM1 getAdaboost ( )
+	{
 		return adaboost;
 	}
 
-	public void run() throws Exception {
+	public double getRsme ( )
+	{
+		return rsme;
+	}
+
+	public void setRsme ( double rsme )
+	{
+		this.rsme = rsme;
+	}
+
+	public void run ( ) throws Exception
+	{
 		// first, create a list of labeled points from the users we have, since
 		// we don't care anymore about order
 		// Read all the instances in the files
-		this.initTimeProcess = System.currentTimeMillis();
-		Instances trainData, testData, checkData;
-		Remove remove = new Remove();
-		remove.setAttributeIndices("last");
+		this.initTimeProcess = System.currentTimeMillis ( );
+		Instances trainData , testData , checkData;
+		Remove remove = new Remove ( );
+		remove.setAttributeIndices ( "last" );
 
-		trainData = new DataSource(Configuration.TRAIN_DATABASE_PATH).getDataSet();
-		trainData = sanitize(trainData);
-		trainData.setClassIndex(0);
-		remove.setInputFormat(trainData);
-		trainData = Filter.useFilter(trainData, remove);
-		
-		testData = new DataSource(Configuration.TEST_DATABASE_PATH).getDataSet();
-		testData = sanitize(testData);
-		testData.setClassIndex(0);
-		remove.setInputFormat(testData);
-		testData = Filter.useFilter(testData, remove);
-		
-//		checkData = new DataSource(Configuration.CHECK_DATABASE_PATH).getDataSet();
-//		for (Instance i : checkData){
-//			userIdToRevisit.put((int) i.value(17), i);
-//		}
-//		checkData = sanitize(checkData);
-//		checkData.setClassIndex(0);
-//		remove.setInputFormat(checkData);
-//		checkData = Filter.useFilter(checkData, remove);
+		trainData = new DataSource ( trainingFile ).getDataSet ( );
+		trainData = sanitize ( trainData );
+		trainData.setClassIndex ( 0 );
+		remove.setInputFormat ( trainData );
+		trainData = Filter.useFilter ( trainData , remove );
 
-		System.out.println();
-		System.out.println("Creating database...");
+		testData = new DataSource ( testingFile ).getDataSet ( );
+		testData = sanitize ( testData );
+		testData.setClassIndex ( 0 );
+		remove.setInputFormat ( testData );
+		testData = Filter.useFilter ( testData , remove );
 
-		System.out.println("Databases created. Starting classification...");
-		System.out.println();
+		// System.out.println();
+		// System.out.println("Creating database...");
+		//
+		// System.out.println("Databases created. Starting classification...");
+		// System.out.println();
 
 		// Show result time
-		System.out.println(
-				" (Result) Time to process databases: " + (System.currentTimeMillis() - this.initTimeProcess) + "ms");
-		this.initTimeProcess = System.currentTimeMillis();
-		System.out.println();
+		// System.out.println(
+		// " (Result) Time to process databases: " + (System.currentTimeMillis()
+		// - this.initTimeProcess) + "ms");
+		// this.initTimeProcess = System.currentTimeMillis();
+		// System.out.println();
 
-		String[] options = new String[10];
+		String [ ] forestOptions = new String [ 12 ];
+		String [ ] adaBoostOptions = new String [ 2 ];
+		ArrayList < Prediction > predictions = new ArrayList < Prediction > ( );
 
-		try {
-			synchronized (this) {
-				adaboost = new AdaBoostM1();
-				forest = new RandomForest();
+		try
+		{
+			synchronized ( this )
+			{
+				adaboost = new AdaBoostM1 ( );
+				forest = new RandomForest ( );
 
 				// tree depth
-				options[0] = "-depth";
-				options[1] = "" + Configuration.DEPTH;
+				forestOptions [ 0 ] = "-depth";
+				forestOptions [ 1 ] = "" + Configuration.DEPTH;
 
 				// set number of trees
-				options[2] = "-I";
-				options[3] = "" + Configuration.NUM_TREES;
+				forestOptions [ 2 ] = "-I";
+				forestOptions [ 3 ] = "" + Configuration.NUM_TREES;
 
 				// set seed for the trees
-				options[4] = "-S";
-				options[5] = "" + Configuration.SEED;
+				forestOptions [ 4 ] = "-S";
+				forestOptions [ 5 ] = "" + Configuration.SEED;
 
 				// number of features
-				options[6] = "-K";
-				options[7] = "" + Configuration.NUM_FEATURES;
+				forestOptions [ 6 ] = "-K";
+				forestOptions [ 7 ] = "" + Configuration.NUM_FEATURES;
 
 				// sets the number of threads as the maximum possible
-				options[8] = "-num-slots";
-				options[9] = "" + 0;
+				forestOptions [ 8 ] = "-num-slots";
+				forestOptions [ 9 ] = "" + 0;
+
+				// Set minimum number of instances per leaf
+				forestOptions [ 10 ] = "-M";
+				forestOptions [ 11 ] = "" + Configuration.NUM_INSTANCES_PER_LEAF;
 
 				// add all options
-				forest.setOptions(options);
+				forest.setOptions ( forestOptions );
+
+				adaBoostOptions [ 0 ] = "-I";
+				adaBoostOptions [ 1 ] = "" + Configuration.ADABOOST_ITERATIONS;
 
 				// print the forest options
-				for (String op : forest.getOptions()) {
-					System.out.print(op + " ");
-				}
-				System.out.println();
+				// for (String op : forest.getOptions()) {
+				// System.out.print(op + " ");
+				// }
+				// System.out.println();
 
-				adaboost.setClassifier(forest);
-				// Collect every group of predictions for current model in an
-				// ArrayList
-				ArrayList<Prediction> predictions = new ArrayList<Prediction>();
-				// For each training-testing split pair, train and test the
-				// classifier
-				Evaluation validation = classify(adaboost, trainData, testData);
-				predictions.addAll(validation.predictions());
+				adaboost.setClassifier ( forest );
 
-				// Calculate overall accuracy of current classifier on all
-				// splits
-				double[] falseValues = calculateFalseValues(predictions);
-				setFalsePositives(falseValues[2]);
-				setFalseNegatives(falseValues[3]);
-				setGeneralAccuracy(calculateAccuracy(predictions));
+				Evaluation evaluation = new Evaluation ( trainData );
+
+				adaboost.buildClassifier ( trainData );
+
+				// System.out.println(
+				// " (Result) Time to create model: " +
+				// (System.currentTimeMillis() - this.initTimeProcess) + "ms");
+				this.initTimeProcess = System.currentTimeMillis ( );
+
+				evaluation.evaluateModel ( adaboost , testData );
+
+				this.initTimeProcess = System.currentTimeMillis ( ) - this.initTimeProcess;
+
+				predictions.addAll ( evaluation.predictions ( ) );
+
+				calculateFalseValues ( predictions );
+
+				calculateAccuracy ( predictions );
 
 				// Print current accuracy
-				System.out.println(forest.getTechnicalInformation());
-				System.out.format(
-						"Accuracy: \n" + "\t %.2f percent of the users predicted to stay will go, \n"
-								+ "\t %.2f percent of the users predicted to go will stay, \n"
-								+ "\t %.2f percent general accuracy of the algorithm. \n",
-						getFalsePositives(), getFalseNegatives(), getGeneralAccuracy());
-				System.out.println();
-				weka.core.SerializationHelper.write(Configuration.FOREST_PATH, adaboost);
-				System.out.println("Model saved in " + Configuration.FOREST_PATH);
-				
+				// System.out.println(forest.getTechnicalInformation());
+				// System.out.format ( "Accuracy: \n" + "\t %.2f probability of
+				// false churn, \n"
+				// + "\t %.2f probability of false not churn, \n" + "\t %.2f
+				// general accuracy of the algorithm. \n"
+				// + "\t %.2f Root Square Mean Error. \n" , getFalseChurn ( ) ,
+				// getFalseNotChurn ( ) ,
+				// getGeneralAccuracy ( ) , getRsme ( ) );
+				// System.out.println();
+				// weka.core.SerializationHelper.write(Configuration.FOREST_PATH,
+				// adaboost);
+				// System.out.println("Model saved in " +
+				// Configuration.FOREST_PATH);
+				writer.write ( Configuration.ADABOOST_ITERATIONS + "," + Configuration.NUM_TREES + ","
+						+ Configuration.NUM_FEATURES + "," + getFalseChurn ( ) + "," + getFalseNotChurn ( ) + ","
+						+ getGeneralAccuracy ( ) + "," + getRsme ( ) + "," + initTimeProcess );
+				writer.newLine ( );
+				writer.flush ( );
 			}
 
-//			adaboost = (AdaBoostM1) weka.core.SerializationHelper.read(Configuration.FOREST_PATH);
-			// Show result time
-			System.out.println(
-					" (Result) Time to train forest: " + (System.currentTimeMillis() - this.initTimeProcess) + "ms");
-			this.initTimeProcess = System.currentTimeMillis();
-//			System.out.println();
-//			File file = new File(Configuration.PREDICTIONS_PATH);
-//			
-//				// if files dont exist, then create them
-//				if (!file.exists()) {
-//					file.createNewFile();
-//				}
-//				FileWriter fw = new FileWriter(file.getAbsoluteFile());
-//				BufferedWriter bw = new BufferedWriter(fw);
-//				bw.write("id,revisit_prediction,revisit_actual");
-//				bw.newLine();
-//				for (int i : userIdToRevisit.keySet()) {
-//					Instance instance = userIdToRevisit.get(i);
-//
-//					remove.setInputFormat(instance.dataset());
-//					instance.setDataset(null);
-//					instance.deleteAttributeAt(17);
-//					instance.setDataset(testData);
-//					double v = instance.value(0);
-//					double c = adaboost.classifyInstance(instance);
-//						bw.write(i+","+c+","+v);
-//						bw.newLine();
-//				}
-//				bw.close();
+			// adaboost = (AdaBoostM1)
+			// weka.core.SerializationHelper.read(Configuration.FOREST_PATH);
 
-		} catch (Exception e) {
-			e.printStackTrace();
+			// Show result time
+			// System.out.println ( " (Result) Time to train forest: "
+			// + ( System.currentTimeMillis ( ) - this.initTimeProcess ) + "ms"
+			// );
+			// this.initTimeProcess = System.currentTimeMillis ( );
+
+//			BufferedWriter bw = new BufferedWriter ( new FileWriter ( Configuration.PREDICTIONS_PATH ) );
+//			bw.write ( "churn_percent,churn_actual" );
+//			bw.newLine ( );
+//			for ( Prediction p : predictions )
+//			{
+//				NominalPrediction np = ( NominalPrediction ) p;
+//				bw.write ( np.distribution ( ) [ 0 ] + "," + np.actual ( ) );
+//				bw.newLine ( );
+//			}
+//			bw.close ( );
+
+		} catch ( Exception e )
+		{
+			e.printStackTrace ( );
 		}
 	}
 
-	public static Evaluation classify(Classifier model, Instances trainingSet, Instances testingSet) throws Exception {
-		Evaluation evaluation = new Evaluation(trainingSet);
+	public static Evaluation classify ( Classifier model , Instances trainingSet , Instances testingSet )
+			throws Exception
+	{
+		Evaluation evaluation = new Evaluation ( trainingSet );
 
-		model.buildClassifier(trainingSet);
-		evaluation.evaluateModel(model, testingSet);
+		model.buildClassifier ( trainingSet );
+		evaluation.evaluateModel ( model , testingSet );
 
 		return evaluation;
 	}
@@ -230,67 +320,100 @@ public class FUABuilder {
 	// true negative, false positive, false negative
 	// this is a delicate part, it is important to distinguish between false
 	// positives and false negatives
-	public static double[] calculateFalseValues(ArrayList<Prediction> predictions) {
-		double[] posibilities = { 0, 0, 0, 0 };
+	public void calculateFalseValues ( ArrayList < Prediction > predictions )
+	{
 		// these two are used to calculate the amount of predicted values, true
 		// or false
-		int totalObtainedPositives = 0;
-		int totalObtainedNegatives = 0;
-		for (int i = 0; i < predictions.size(); i++) {
-			NominalPrediction np = (NominalPrediction) predictions.get(i);
-			// let's cast expected value and obtained value
-			int obtained = (int) np.predicted(); // this is the value that the
-													// algorithm predicts, the
-													// value we obtain
-			int expected = (int) np.actual(); // this is the true known value,
-												// the value that we expect to
-												// get
 
-			if (obtained == 1 && expected == 1) {
-				// obtained positive, expected positive: true positive
-				posibilities[0]++;
-				totalObtainedPositives++;
-			} else if (obtained == 0 && expected == 0) {
-				// obtained negative, expected negative: true negative
-				posibilities[1]++;
-				totalObtainedNegatives++;
-			} else if (obtained == 1 && expected == 0) {
-				// obtained positive, expected negative: false positive
-				posibilities[2]++;
-				totalObtainedPositives++;
-			} else if (obtained == 0 && expected == 1) {
-				// obtained negative, expected positive: false negative
-				posibilities[3]++;
-				totalObtainedNegatives++;
+		double falseChurn = 0;
+		double predictedChurn = 0;
+		double falseNotChurn = 0;
+		double predictedNotChurn = 0;
+		for ( Prediction p : predictions )
+		{
+			if ( p.predicted ( ) == Configuration.CHURN )
+			{
+				predictedChurn ++ ;
+				if ( p.actual ( ) == Configuration.NOT_CHURN )
+				{
+					falseChurn ++ ;
+				}
+			}
+			else if ( p.predicted ( ) == Configuration.NOT_CHURN )
+			{
+				predictedNotChurn ++ ;
+				if ( p.actual ( ) == Configuration.CHURN )
+				{
+					falseNotChurn ++ ;
+				}
 			}
 		}
-		// now let's turn these quantities into percentages
-		posibilities[0] = 100 * posibilities[0] / (double) totalObtainedPositives;
-		posibilities[1] = 100 * posibilities[1] / (double) totalObtainedNegatives;
-		posibilities[2] = 100 * posibilities[2] / (double) totalObtainedPositives;
-		posibilities[3] = 100 * posibilities[3] / (double) totalObtainedNegatives;
-		return posibilities;
+
+		setFalseChurn ( falseChurn / predictedChurn );
+		setFalseNotChurn ( falseNotChurn / predictedNotChurn );
+		setGeneralAccuracy ( 1 - ( falseChurn + falseNotChurn ) / ( predictedChurn + predictedNotChurn ) );
 	}
 
-	public static double calculateAccuracy(ArrayList<Prediction> predictions) {
-		double correct = 0;
-		for (int i = 0; i < predictions.size(); i++) {
-			NominalPrediction np = (NominalPrediction) predictions.get(i);
-			if (np.predicted() == np.actual())
-				correct++;
+	public void calculateAccuracy ( ArrayList < Prediction > predictions )
+	{
+		double preRSME = 0;
+		for ( int i = 0 ; i < predictions.size ( ) ; i ++ )
+		{
+			NominalPrediction np = ( NominalPrediction ) predictions.get ( i );
+			preRSME += Math.pow ( np.actual ( ) - np.distribution ( ) [ 0 ] , 2 );
 		}
 
-		return 100 * correct / predictions.size();
+		setRsme ( Math.sqrt ( preRSME ) );
 	}
 
-	public static Instances sanitize(Instances instances) throws Exception {
-		NumericToNominal convert = new NumericToNominal();
-		String[] options = new String[2];
-		options[0] = "-R";
-		options[1] = "first";
-		convert.setOptions(options);
-		convert.setInputFormat(instances);
-		return Filter.useFilter(instances, convert);
+	public static Instances sanitize ( Instances instances ) throws Exception
+	{
+		NumericToNominal convert = new NumericToNominal ( );
+		String [ ] options = new String [ 2 ];
+		options [ 0 ] = "-R";
+		options [ 1 ] = "first";
+		convert.setOptions ( options );
+		convert.setInputFormat ( instances );
+		return Filter.useFilter ( instances , convert );
 	}
-	
+
+	public double churnPercentage ( UserBean user ) throws Exception
+	{
+		Instances trainData = new Instances ( Configuration.FOREST_PATH , attributes ( ) , 1 );
+		trainData.setClassIndex ( 0 );
+		Instance instance = user.getInstance ( );
+		instance.setDataset ( trainData );
+		return adaboost.distributionForInstance ( instance ) [ 0 ];
+	}
+
+	public static final ArrayList < Attribute > attributes ( )
+	{
+		// add the attributes names to the database
+		// TODO maybe add system to add as many attributes as the instance has
+		ArrayList < Attribute > attributes = new ArrayList < Attribute > ( );
+		// class value
+		attributes.add ( new Attribute ( "revisited" , Arrays.asList ( "0" , "1" ) ) );
+		// five averages
+		attributes.add ( new Attribute ( "avg_avg_bitrate" ) );
+		attributes.add ( new Attribute ( "avg_buffer_ratio" ) );
+		attributes.add ( new Attribute ( "avg_buffer_underruns" ) );
+		attributes.add ( new Attribute ( "avg_playtime" ) );
+		attributes.add ( new Attribute ( "avg_startup_time" ) );
+		// five attributes specific for the row
+		attributes.add ( new Attribute ( "avg_bitrate" ) );
+		attributes.add ( new Attribute ( "buffer_ratio" ) );
+		attributes.add ( new Attribute ( "buffer_underruns" ) );
+		attributes.add ( new Attribute ( "playtime" ) );
+		attributes.add ( new Attribute ( "startup_time" ) );
+		// five attributes depending on the row and the previous one
+		attributes.add ( new Attribute ( "better_avg_bitrate" ) );
+		attributes.add ( new Attribute ( "better_buffer_ratio" ) );
+		attributes.add ( new Attribute ( "better_buffer_underruns" ) );
+		attributes.add ( new Attribute ( "better_playtime" ) );
+		attributes.add ( new Attribute ( "better_startup_time" ) );
+		// one more to store the amount of views in the same timeframe
+		attributes.add ( new Attribute ( "views_same_day" ) );
+		return attributes;
+	}
+
 }

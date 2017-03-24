@@ -10,7 +10,7 @@ dependencies
     compile('com.google.guava:guava:19.0')
     compile group: 'joda-time', name: 'joda-time', version: '2.9.4'
     compile group: 'com.google.code.gson', name: 'gson', version: '2.6.2'
-    compile group: 'com.nicepeopleatwork', name : 'krillin', version: '1.2.4'
+	compile group: 'com.nicepeopleatwork', name : 'krillin', version: '1.2.4'
     compile('com.nicepeopleatwork:YouboraProcessCSVInterface:1.3.3')
     compile('com.nicepeopleatwork:youboraCSVDictLib:1.0.3')
     compile('com.nicepeopleatwork:NiceDruidLib:1.7.4')
@@ -32,9 +32,9 @@ dependencies
 
 task fatJar(type: Jar) {
 	baseName = 'niceFUArest'
-	version = '1.1.0'
+	version = '1.2.0'
 	manifest {
-		attributes 'Main-Class': 'com.nicepeopleatwork.forest.NiceFUArestService'
+		attributes 'Main-Class': 'com.nicepeopleatwork.forest.FUABuilder'
 	}
 	// .matching{exclude{it.path.contains('META-INF')} }
 	from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it)}}

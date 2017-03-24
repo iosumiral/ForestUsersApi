@@ -2,6 +2,7 @@ package com.nicepeopleatwork.forest;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.logging.log4j.LogManager;
@@ -65,13 +66,13 @@ public class FUATask implements Runnable {
 //					.read(Configuration.FOREST_PATH);
 			AdaBoostM1 forest = FUAService.forest;
 
-			int result = classifyInstance(instance, forest);
+//			int result = classifyInstance(instance, forest);
 
-			String json = new Gson().toJson(result);
+//			String json = new Gson().toJson(result);
 
-			body.println(json);
-
-			logger.debug(json);
+//			body.println(json);
+//
+//			logger.debug(json);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -85,41 +86,6 @@ public class FUATask implements Runnable {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public static int classifyInstance(Instance instance, AdaBoostM1 forest) throws Exception {
-		// add the attributes names to the database
-		// TODO maybe add system to add as many attributes as the instance has
-		ArrayList<Attribute> attributes = new ArrayList<Attribute>();
-		// class value
-		List classes = new ArrayList(2);
-		classes.add("0");
-		classes.add("1");
-		attributes.add(new Attribute("revisited", classes));
-		// five averages
-		attributes.add(new Attribute("avg_avg_bitrate"));
-		attributes.add(new Attribute("avg_buffer_ratio"));
-		attributes.add(new Attribute("avg_buffer_underruns"));
-		attributes.add(new Attribute("avg_playtime"));
-		attributes.add(new Attribute("avg_startup_time"));
-		// five attributes specific for the row
-		attributes.add(new Attribute("avg_bitrate"));
-		attributes.add(new Attribute("buffer_ratio"));
-		attributes.add(new Attribute("buffer_underruns"));
-		attributes.add(new Attribute("playtime"));
-		attributes.add(new Attribute("startup_time"));
-		// five attributes depending on the row and the previous one
-		attributes.add(new Attribute("better_avg_bitrate"));
-		attributes.add(new Attribute("better_buffer_ratio"));
-		attributes.add(new Attribute("better_buffer_underruns"));
-		attributes.add(new Attribute("better_playtime"));
-		attributes.add(new Attribute("better_startup_time"));
-		// one more to store the amount of views in the same timeframe
-		attributes.add(new Attribute("views_same_day"));
-		Instances trainData = new Instances(Configuration.FOREST_PATH, attributes, 1);
-		trainData.setClassIndex(0);
-		instance.setDataset(trainData);
-		return (int) Math.round((float) forest.classifyInstance(instance));
 	}
 
 }
