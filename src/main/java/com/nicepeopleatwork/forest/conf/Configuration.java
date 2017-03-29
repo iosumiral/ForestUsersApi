@@ -18,27 +18,23 @@ public class Configuration
 
 	public static int DEPTH = 0;
 
-	public static int NUM_TREES = 100;
+	public static int NUM_TREES = 300;
 
-	public static int NUM_FEATURES = 12;
+	public static int NUM_FEATURES = 0;
 
 	public static int NUM_INSTANCES_PER_LEAF = 1;
 	
-	public static final int CHURN = 0;
+	public static final int CHURN = 1;
 	
-	public static final int NOT_CHURN = 1;
+	public static final int NOT_CHURN = 0;
 
 	public static int SEED = 4;
-	
-	public static int ADABOOST_ITERATIONS = 25;
 	
 	public static String FOREST_PATH = "resources/randomForest.model";
 	
 	public static String TRAIN_DATABASE_PATH = "resources/trainingFile.csv";
 	
 	public static String TEST_DATABASE_PATH = "resources/testingFile.csv";
-	
-	public static String CHECK_DATABASE_PATH = "resources/checkingFile.csv";
 	
 	public static String PREDICTIONS_PATH = "resources/predictions.csv";
 	
@@ -50,25 +46,29 @@ public class Configuration
 	
 	private Properties properties = null;
 	
-//
-//	private static class InstanceHolder {
-//		public static Configuration instance = new Configuration();
-//	}
-//
-//	public static Configuration getInstance() {
-//		return InstanceHolder.instance;
-//	}
-//
-//	private Configuration() 
-//	{
-//		try
-//		{
-//			ConfigurationLoader.loadConfiguration(Configuration.class, CONFIG_FILE_NAME);
-//		}
-//		catch ( Exception e )
-//		{
-////			logger.error(MessageException.KRILLIN_EXCEPTION, e);
-//		}
-//	}
+	public static String [ ] DEFAULT_ATTRIBUTES = { "avg_avg_bitrate" , "avg_buffer_ratio" , "avg_buffer_underruns" ,
+			"avg_playtime" , "avg_startup_time" , "avg_bitrate" , "bufferRatio" , "buffer_underruns" , "playtime" ,
+			"startup_time" , "betterBitrate" , "betterBufferRatio" , "betterBufferUnderruns" , "betterPlayTime" ,
+			"betterStartupTime" , "visitsSameDay" };
+
+	private static class InstanceHolder {
+		public static Configuration instance = new Configuration();
+	}
+
+	public static Configuration getInstance() {
+		return InstanceHolder.instance;
+	}
+
+	private Configuration() 
+	{
+		try
+		{
+			ConfigurationLoader.loadConfiguration(Configuration.class, CONFIG_FILE_NAME);
+		}
+		catch ( Exception e )
+		{
+//			logger.error(MessageException.KRILLIN_EXCEPTION, e);
+		}
+	}
 
 }

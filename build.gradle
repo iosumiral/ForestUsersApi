@@ -23,7 +23,7 @@ dependencies
 	compile('com.nicepeopleatwork:sharding:2.2.14')
 	
     compile ('com.github.fommil.netlib:netlib-native_system-linux-x86_64:1.1')
-    compile('nz.ac.waikato.cms.weka:weka-stable:3.8.0')
+    compile('nz.ac.waikato.cms.weka:weka-dev:3.9.1')
     compile('org.simpleframework:simple:5.1.6') 
 	
     testCompile 'junit:junit:4.12'
