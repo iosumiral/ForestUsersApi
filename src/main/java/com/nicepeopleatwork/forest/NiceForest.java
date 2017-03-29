@@ -24,6 +24,8 @@ import weka.filters.unsupervised.attribute.NumericToNominal;
 public class NiceForest
 {
 	private RandomForest forest;
+	
+	private AdaBoostM1 adaboost;
 
 	private double falseChurn;
 
@@ -95,46 +97,27 @@ public class NiceForest
 			{
 //				adaboost = new AdaBoostM1 ( );
 				forest = new RandomForest ( );
-
-				// tree depth
-				forestOptions [ 0 ] = "-depth";
-				forestOptions [ 1 ] = "" + Configuration.DEPTH;
-
-				// set number of trees
-				forestOptions [ 2 ] = "-I";
-				forestOptions [ 3 ] = "" + Configuration.NUM_TREES;
-
-				// set seed for the trees
-				forestOptions [ 4 ] = "-S";
-				forestOptions [ 5 ] = "" + Configuration.SEED;
-
-				// number of features
-				forestOptions [ 6 ] = "-K";
-				forestOptions [ 7 ] = "" + Configuration.NUM_FEATURES;
-
-				// sets the number of threads as the maximum possible
-				forestOptions [ 8 ] = "-num-slots";
-				forestOptions [ 9 ] = "" + 0;
-
-				// Set minimum number of instances per leaf
-				forestOptions [ 10 ] = "-M";
-				forestOptions [ 11 ] = "" + Configuration.NUM_INSTANCES_PER_LEAF;
+				adaboost = new AdaBoostM1 ( );
 				
-				// attribute importance
-				forestOptions [ 12 ] = "-attribute-importance";
+				forest.setMaxDepth ( Configuration.DEPTH );
+				forest.setNumIterations ( Configuration.NUM_TREES );
+				forest.setSeed ( Configuration.SEED );
+				forest.setNumFeatures ( Configuration.NUM_FEATURES );
+				adaboost.setNumIterations ( Configuration.ADABOOST_ITERATIONS );
 
-				// add all options
-				forest.setOptions ( forestOptions );
+				// set hardcoded options
+				forest.setOptions ( new String[]{"-num-slots","0","-M","1","-attribute-importance"} );
 
 				Evaluation evaluation = new Evaluation ( trainData );
 
-				forest.buildClassifier ( trainData );
+				adaboost.setClassifier ( forest );
+				adaboost.buildClassifier ( trainData );
 
 				// System.out.println(
 				// " (Result) Time to create model: " +
 				// (System.currentTimeMillis() - this.initTimeProcess) + "ms");
 
-				evaluation.evaluateModel ( forest , testData );
+				evaluation.evaluateModel ( adaboost , testData );
 				
 				predictions.addAll ( evaluation.predictions ( ) );
 
@@ -232,7 +215,7 @@ public class NiceForest
 		trainData.setClassIndex ( 0 );
 		Instance instance = view.getInstance ( );
 		instance.setDataset ( trainData );
-		return forest.distributionForInstance ( instance ) [ Configuration.CHURN ];
+		return adaboost.distributionForInstance ( instance ) [ Configuration.CHURN ];
 	}
 
 	/**

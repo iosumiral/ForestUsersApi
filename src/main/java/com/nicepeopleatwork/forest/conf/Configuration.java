@@ -16,13 +16,13 @@ public class Configuration
 	// Configuration properties
 	public static String DRUID_BROKER = "http://druid-brokers-nl.youbora.com/druid/v2/?pretty";
 
-	public static int DEPTH = 0;
+	public static int DEPTH = 7;
 
-	public static int NUM_TREES = 300;
+	public static int NUM_TREES = 400;
 
-	public static int NUM_FEATURES = 0;
-
-	public static int NUM_INSTANCES_PER_LEAF = 1;
+	public static int NUM_FEATURES = 10;
+	
+	public static int ADABOOST_ITERATIONS = 50;
 	
 	public static final int CHURN = 1;
 	
