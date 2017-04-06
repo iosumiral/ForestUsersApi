@@ -1,9 +1,14 @@
 package com.nicepeopleatwork.forest.exceptions;
 
-import com.nicepeopleatwork.forest.conf.Configuration;
+import com.nicepeopleatwork.forest.conf.ForestConfiguration;
 
 public class AttributeNumberException extends Exception
 {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
 	public AttributeNumberException (  )
 	{
 		super ( message() );
@@ -12,10 +17,10 @@ public class AttributeNumberException extends Exception
 	public static String message()
 	{
 		StringBuilder str = new StringBuilder();
-		int numValues = Configuration.DEFAULT_ATTRIBUTES.length + 1;
+		int numValues = ForestConfiguration.getATTRIBUTES ( ).length + 1;
 		str.append ( "Incorrect number of values introduced. Required " + numValues + " values:\n" );
 		str.append ( "revisited, " );
-		for ( String s : Configuration.DEFAULT_ATTRIBUTES )
+		for ( String s : ForestConfiguration.getATTRIBUTES ( ) )
 		{
 			str.append ( ", " + s );
 		}
