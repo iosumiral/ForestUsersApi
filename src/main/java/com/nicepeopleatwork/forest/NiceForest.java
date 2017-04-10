@@ -55,11 +55,9 @@ public class NiceForest
 	public NiceForest( String atributes )
 	{
 		String[] range = atributes.split ( "," );
-		ForestConfiguration.setATTRIBUTES ( Arrays.copyOfRange ( range , 1 , range.length ) );
+		ForestConfiguration.setATTRIBUTES ( Arrays.copyOfRange ( range , 0 , range.length ) );
 		forest = new RandomForest ( );
 		adaboost = new AdaBoostM1 ( );
-
-		adaboost.setClassifier ( forest );
 	}
 
 	/**

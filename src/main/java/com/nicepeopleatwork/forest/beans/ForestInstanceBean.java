@@ -25,7 +25,7 @@ public class ForestInstanceBean
 	{
 		this.values = values;
 		if ( values.length != ForestConfiguration.getATTRIBUTES ( ).length + 1 )
-			throw new AttributeNumberException (  );
+			throw new AttributeNumberException ( values.length );
 	}
 	
 	public ForestInstanceBean ( int userId , double[] values ) throws AttributeNumberException
@@ -33,7 +33,7 @@ public class ForestInstanceBean
 		this.userId = userId;
 		this.values = values;
 		if ( values.length != ForestConfiguration.getATTRIBUTES ( ).length + 1 )
-			throw new AttributeNumberException (  );
+			throw new AttributeNumberException ( values.length );
 	}
 
 	public int getUserId ( )
