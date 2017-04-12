@@ -9,10 +9,9 @@ public class ForestConfiguration
 	// Configuration properties
 	private static String DRUID_BROKER = "http://druid-brokers-nl.youbora.com/druid/v2/?pretty";
 
-	private static String [ ] ATTRIBUTES = { "avg_avg_bitrate" , "avg_buffer_ratio" , "avg_buffer_underruns" ,
-			"avg_playtime" , "avg_startup_time" , "avg_bitrate" , "bufferRatio" , "buffer_underruns" , "playtime" ,
-			"startup_time" , "betterBitrate" , "betterBufferRatio" , "betterBufferUnderruns" , "betterPlayTime" ,
-			"betterStartupTime" , "visitsSameDay" };
+	private static String [ ] ATTRIBUTES = { "avg_avg_bitrate" , "avg_buffer_ratio" , "avg_buffer_underruns" , "avg_playtime" ,
+			"avg_startup_time" , "betterBitrate" , "betterBufferRatio" , "betterBufferUnderruns" ,
+			"betterPlayTime" , "betterStartupTime" , "totalVisits" , " numberRevisits", "reciency" };
 
 	private static int DEPTH = 0;
 
